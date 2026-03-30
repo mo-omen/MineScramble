@@ -1233,6 +1233,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
 
         /* Result: 0=pending, 1=correct, -1=wrong, -2=timeout */
         int result;
+        int pending_auto_check;
 
         /* Menu button */
         int menu_btn_x = 20;
@@ -1291,6 +1292,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
         answer_count = 0;
         memset(answer_slots, 0, sizeof(answer_slots));
         result = 0;
+        pending_auto_check = 0;
         round_start = time(NULL);
 
         /* === Round loop === */
@@ -1391,6 +1393,21 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
 
             gfx_flush();
 
+            if(pending_auto_check && answer_count == word_len && result == 0) {
+                char guess[MAX_WORD_LEN];
+                strncpy(guess, answer_slots, word_len);
+                guess[word_len] = '\0';
+
+                if(check_guess(guess, word)) {
+                    result = 1;
+                } else {
+                    result = -1;
+                }
+                pending_auto_check = 0;
+                usleep(30000);
+                continue;
+            }
+
             /* === HANDLE INPUT === */
             if(gfx_event_waiting()) {
                 char key = gfx_wait();
@@ -1414,6 +1431,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                             tile_selected[i] = 1;
                             answer_slots[answer_count] = scrambled[i];
                             answer_count++;
+                            if(answer_count == word_len) pending_auto_check = 1;
                             break;
                         }
                     }
@@ -1505,21 +1523,9 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                             tile_selected[i] = 1;
                             answer_slots[answer_count] = scrambled[i];
                             answer_count++;
+                            if(answer_count == word_len) pending_auto_check = 1;
                             break;
                         }
-                    }
-                }
-
-                /* Auto-check when all slots filled */
-                if(answer_count == word_len && result == 0) {
-                    char guess[MAX_WORD_LEN];
-                    strncpy(guess, answer_slots, word_len);
-                    guess[word_len] = '\0';
-
-                    if(check_guess(guess, word)) {
-                        result = 1;
-                    } else {
-                        result = -1;
                     }
                 }
             }
