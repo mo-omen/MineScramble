@@ -223,11 +223,6 @@ void scramble_word(const char *original, char *scrambled);
 int pick_word(int used[], int word_count);
 int check_guess(const char *guess, const char *answer);
 
-/* Text-based game (Level 1) */
-void text_start_menu(void);
-void text_show_help(void);
-void text_play_game(PuzzleSet *ps);
-
 /* GUI screens */
 int gui_main_menu(void);
 void gui_help_screen(void);
@@ -258,31 +253,6 @@ int main()
     loaded = load_all_puzzles(puzzles);
     load_scores();
 
-    /* --- TEXT-BASED MENU (Level 1) --- */
-    printf("========================================\n");
-    printf("  MINE SCRAMBLE - Word Scramble Game\n");
-    printf("========================================\n");
-    printf("  1. Play Text Mode (Level 1)\n");
-    printf("  2. Play GUI Mode  (Level 2/3)\n");
-    printf("  3. Exit\n");
-    printf("========================================\n");
-    printf("Enter choice: ");
-    scanf("%d", &choice);
-    while(getchar() != '\n');
-
-    if(choice == 1) {
-        if(loaded == 0) {
-            printf("Error: No puzzle files found in src/puzzle/\n");
-            return 1;
-        }
-        text_start_menu();
-        return 0;
-    } else if(choice == 3) {
-        printf("Goodbye!\n");
-        return 0;
-    }
-
-    /* --- GUI MODE (Level 2/3) --- */
     gfx_open(WIN_W, WIN_H, "Mine Scramble - Minecraft Word Game");
     gfx_clear_color(32, 32, 32);
 
@@ -800,124 +770,6 @@ int check_guess(const char *guess, const char *answer)
         }
     }
     return 1;
-}
-
-/* ======================== TEXT-BASED GAME (LEVEL 1) ======================== */
-
-void text_start_menu(void)
-{
-    int choice;
-
-    while(1) {
-        printf("\n====== MINE SCRAMBLE ======\n");
-        printf("1. New Game\n");
-        printf("2. Help\n");
-        printf("3. Exit\n");
-        printf("Enter choice: ");
-
-        if(scanf("%d", &choice) != 1) {
-            while(getchar() != '\n');
-            printf("Invalid input.\n");
-        } else {
-            while(getchar() != '\n');
-            if(choice == 1) {
-                text_play_game(&puzzles[0]);
-            } else if(choice == 2) {
-                text_show_help();
-            } else if(choice == 3) {
-                printf("Goodbye!\n");
-                return;
-            } else {
-                printf("Invalid choice.\n");
-            }
-        }
-    }
-}
-
-void text_show_help(void)
-{
-    printf("\n======== HOW TO PLAY ========\n");
-    printf("A scrambled word will be shown.\n");
-    printf("Type the correct word before time runs out (10 seconds).\n");
-    printf("Correct guess: +1 life, +10 points.\n");
-    printf("Wrong guess or timeout: -1 life.\n");
-    printf("Game over when lives reach 0.\n");
-    printf("Type END to quit to the main menu.\n");
-    printf("Press Enter to return...");
-    getchar();
-}
-
-void text_play_game(PuzzleSet *ps)
-{
-    int lives = STARTING_LIVES;
-    int score = 0;
-    int used[MAX_WORDS];
-    char scrambled[MAX_WORD_LEN];
-    char guess[MAX_WORD_LEN + 10];
-    int word_idx;
-    int game_choice;
-    time_t start;
-    double elapsed;
-
-    memset(used, 0, sizeof(used));
-
-    while(lives > 0) {
-        word_idx = pick_word(used, ps->word_count);
-        if(word_idx < 0) {
-            printf("\nAll words completed! Amazing!\n");
-            break;
-        }
-        used[word_idx] = 1;
-
-        scramble_word(ps->words[word_idx], scrambled);
-
-        printf("=========================\n");
-        printf("Scrambled Word: %s\n\n", scrambled);
-        printf("Lives: %d | Score: %d\n", lives, score);
-        printf("You have 10 seconds.\n");
-        printf("Enter guess (or type END to quit): ");
-        fflush(stdout);
-
-        start = time(NULL);
-        if(fgets(guess, sizeof(guess), stdin) == NULL) {
-            break;
-        }
-        elapsed = difftime(time(NULL), start);
-        guess[strcspn(guess, "\r\n")] = '\0';
-
-        if(strcmp(guess, "END") == 0 || strcmp(guess, "end") == 0) {
-            printf("Returning to menu...\n");
-            return;
-        }
-
-        if(elapsed > 10.0) {
-            printf("Time's up!\n");
-            printf("Correct word: %s\n", ps->words[word_idx]);
-            lives--;
-        } else if(check_guess(guess, ps->words[word_idx])) {
-            printf("Correct!\n");
-            lives++;
-            score += POINTS_PER_CORRECT;
-        } else {
-            printf("Wrong!\n");
-            printf("Correct word: %s\n", ps->words[word_idx]);
-            lives--;
-        }
-    }
-
-    printf("\n===== GAME OVER =====\n");
-    printf("Final Score: %d\n", score);
-    printf("1. Replay\n");
-    printf("2. Main Menu\n");
-    printf("Choice: ");
-    if(scanf("%d", &game_choice) == 1) {
-        while(getchar() != '\n');
-        if(game_choice == 1) {
-            text_play_game(ps);
-        }
-    } else {
-        while(getchar() != '\n');
-    }
 }
 
 /* ======================== GUI: MAIN MENU ======================== */
