@@ -1,3 +1,4 @@
+#include "audio_sys.h"
 /********************************************************************
     Group Name   :       0day
     1st Member Name      :       Momen Mohamedelhassan Mohamed Elhag
@@ -7,7 +8,7 @@
     Semester             :       January 2026
 
 -Command to compile the project:
-gcc game.c gfx.c -o game.o -lX11 -lm
+gcc game.c gfx.c audio_sys.c -o game.o -lX11 -lm -lpthread -ldl
 
 *********************************************************************/
 
@@ -31,6 +32,7 @@ gcc game.c gfx.c -o game.o -lX11 -lm
 #define TILE_GAP 6
 #define TIMER_MAX 10
 #define STARTING_LIVES 3
+#define MAX_LIVES 6
 #define POINTS_PER_CORRECT 10
 #define MAX_SCORES 10
 
@@ -249,6 +251,7 @@ int main()
     int choice;
 
     srand((unsigned int)time(NULL));
+    audio_init();
 
     loaded = load_all_puzzles(puzzles);
     load_scores();
@@ -258,6 +261,7 @@ int main()
 
     if(loaded == 0) {
         gui_error_screen("No puzzle files found! Check src/puzzle/ folder.");
+        audio_cleanup();
         return 1;
     }
 
@@ -288,6 +292,7 @@ int main()
         }
     }
 
+    audio_cleanup();
     return 0;
 }
 
@@ -453,8 +458,7 @@ void draw_mc_heart(int x, int y, int scale, int filled)
 void draw_mc_hearts(int x, int y, int lives, int scale)
 {
     int spacing = 7 * scale + scale * 2;
-    int max_display = 10;
-    for(int i = 0; i < max_display && i < 10; i++) {
+    for(int i = 0; i < MAX_LIVES; i++) {
         draw_mc_heart(x + i * spacing, y, scale, i < lives);
     }
 }
@@ -774,6 +778,23 @@ int check_guess(const char *guess, const char *answer)
 
 /* ======================== GUI: MAIN MENU ======================== */
 
+char game_poll_event(int *clicked) {
+    audio_draw_popup();
+    gfx_flush();
+    usleep(16000);
+    audio_tick();
+    if(gfx_event_waiting()) {
+        char c = gfx_wait();
+        *clicked = 1;
+        if (c == 1) audio_play_sfx_click();
+        if (c == ']' || c == '}') audio_next_track();
+        if (c == '[' || c == '{') audio_prev_track();
+        return c;
+    }
+    *clicked = 0;
+    return 0;
+}
+
 int gui_main_menu(void)
 {
     int btn_w = 300;
@@ -827,7 +848,7 @@ int gui_main_menu(void)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
@@ -899,7 +920,9 @@ void gui_help_screen(void)
         ly += 40;
 
         gfx_color(50, 50, 50);
-        gfx_text(lx, ly, "You start with 3 lives. Game ends when lives reach 0.");
+        gfx_text(lx, ly, "You start with 3 lives (max 6). Game ends when lives reach 0.");
+        ly += 28;
+        gfx_text(lx, ly, "Press [ or ] to cycle background tracks.");
         ly += 28;
         gfx_text(lx, ly, "The correct answer is shown after a wrong guess or timeout.");
         ly += 28;
@@ -916,7 +939,7 @@ void gui_help_screen(void)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
@@ -966,11 +989,10 @@ void gui_scoreboard(void)
                                "No scores recorded yet. Play a game!");
         } else {
             /* Table header */
-            gfx_color(60, 60, 60);
-            gfx_text(panel_x + 40, panel_y + 28, "RANK");
-            gfx_text(panel_x + 120, panel_y + 28, "PLAYER");
-            gfx_text(panel_x + 370, panel_y + 28, "SCORE");
-            gfx_text(panel_x + 500, panel_y + 28, "DIFFICULTY");
+            draw_shadow_text(panel_x + 40, panel_y + 28, "RANK", 255, 255, 255);
+            draw_shadow_text(panel_x + 120, panel_y + 28, "PLAYER", 255, 255, 255);
+            draw_shadow_text(panel_x + 370, panel_y + 28, "SCORE", 255, 255, 255);
+            draw_shadow_text(panel_x + 500, panel_y + 28, "DIFFICULTY", 255, 255, 255);
 
             /* Separator line */
             gfx_color(140, 140, 140);
@@ -1009,7 +1031,7 @@ void gui_scoreboard(void)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
@@ -1084,7 +1106,7 @@ int gui_difficulty_select(void)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
@@ -1159,7 +1181,7 @@ void gui_get_player_name(char *name, int maxlen)
 
         gfx_flush();
 
-        c = gfx_wait();
+        int clicked=0; c = game_poll_event(&clicked); if(!clicked) continue;
 
         if(c == '\r' || c == '\n' || c == 13) {
             if(len > 0) return;
@@ -1391,6 +1413,8 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
             draw_mc_button(menu_btn_x, menu_btn_y, menu_btn_w, menu_btn_h,
                            "MENU");
 
+            audio_tick();
+            audio_draw_popup();
             gfx_flush();
 
             if(pending_auto_check && answer_count == word_len && result == 0) {
@@ -1411,6 +1435,9 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
             /* === HANDLE INPUT === */
             if(gfx_event_waiting()) {
                 char key = gfx_wait();
+                if (key == ']' || key == '}') audio_next_track();
+                if (key == '[' || key == '{') audio_prev_track();
+
                 mx = gfx_xpos();
                 my = gfx_ypos();
 
@@ -1431,6 +1458,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                             tile_selected[i] = 1;
                             answer_slots[answer_count] = scrambled[i];
                             answer_count++;
+                            audio_play_sfx_letter();
                             if(answer_count == word_len) pending_auto_check = 1;
                             break;
                         }
@@ -1468,6 +1496,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                             }
                             answer_count--;
                             answer_slots[answer_count] = '\0';
+                            audio_play_sfx_remove();
                             break;
                         }
                     }
@@ -1501,6 +1530,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                         }
                         answer_count--;
                         answer_slots[answer_count] = '\0';
+                        audio_play_sfx_remove();
                     }
                 } else if(key == 13 || key == 10) {
                     /* --- Enter: submit answer if all slots filled --- */
@@ -1523,6 +1553,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
                             tile_selected[i] = 1;
                             answer_slots[answer_count] = scrambled[i];
                             answer_count++;
+                            audio_play_sfx_letter();
                             if(answer_count == word_len) pending_auto_check = 1;
                             break;
                         }
@@ -1542,7 +1573,7 @@ void gui_play_game(PuzzleSet *ps, int set_index, const char *player_name)
             if(result == 1) {
                 sprintf(msg1, "CORRECT!");
                 msg_r = 80; msg_g = 230; msg_b = 60;
-                lives++;
+                if(lives < MAX_LIVES) lives++;
                 score += POINTS_PER_CORRECT;
                 flash_tiles_color(slot_x, slot_y, word_len,
                                   80, 230, 60, 3);
@@ -1657,7 +1688,7 @@ void gui_game_over(int score, int *choice)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
@@ -1708,7 +1739,7 @@ void gui_error_screen(const char *msg)
 
         gfx_flush();
 
-        gfx_wait();
+        int clicked=0; char key=game_poll_event(&clicked); if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 

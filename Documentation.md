@@ -55,15 +55,16 @@
 ### Compile command
 
 ```bash
-gcc game.c gfx.c -o game.o -lX11 -lm
+gcc game.c gfx.c audio_sys.c -o game.o -lX11 -lm -lpthread -ldl
 ```
 
 ### Why these flags are used
 
-- `game.c gfx.c`: compiles both source files.
+- `game.c gfx.c audio_sys.c`: compiles all source files including the new audio system.
 - `-o game.o`: names the final executable `game.o`.
 - `-lX11`: links the X11 graphics library.
 - `-lm`: links the math library.
+- `-lpthread -ldl`: links libraries required by miniaudio.
 
 ### Run command
 
@@ -134,6 +135,9 @@ These constants are declared near the top of `game.c`.
 
 - `STARTING_LIVES 3`
   The player starts with 3 lives.
+
+- `MAX_LIVES 6`
+  The maximum lives a player can have.
 
 - `POINTS_PER_CORRECT 10`
   Each correct word adds 10 points.
