@@ -53,3 +53,6 @@ dkms.conf
 
 # Game save data
 src/savedata/scores.dat
+
+# Local study notes
+STUDY_GUIDE.md
