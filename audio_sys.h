@@ -7,6 +7,7 @@ void audio_tick(void);
 void audio_play_sfx_click(void);
 void audio_play_sfx_letter(void);
 void audio_play_sfx_remove(void);
+void audio_play_sfx_hint(void);
 void audio_toggle_bgm(void);
 int audio_bgm_enabled(void);
 void audio_toggle_sfx(void);

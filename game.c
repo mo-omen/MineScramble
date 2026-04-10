@@ -1127,7 +1127,9 @@ void gui_help_screen(void)
         ly += 28;
         gfx_text(lx, ly, "Press H or click HINT to reveal one correct slot when allowed.");
         ly += 28;
-        gfx_text(lx, ly, "Paid hints need at least 5 score. Zen hints are free.");
+        gfx_text(lx, ly, "Hints can be used multiple times, up to half the word length.");
+        ly += 28;
+        gfx_text(lx, ly, "Paid hints need at least 5 score each. Zen hints are free.");
         ly += 28;
         gfx_text(lx, ly, "No repeated words in a single run. The answer is shown after wrong or timeout.");
         ly += 24;
@@ -1663,7 +1665,7 @@ int try_use_hint(char answer_slots[], int *answer_count, int tile_selected[],
     (*hints_used_this_round)++;
     *score -= hint_penalty;
     if(*score < 0) *score = 0;
-    audio_play_sfx_click();
+    audio_play_sfx_hint();
     return 1;
 }
 
@@ -1678,7 +1680,6 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
     int award_lives = (mode == RUN_MODE_SURVIVAL || mode == RUN_MODE_CREATIVE_MARATHON);
     int use_lives = (mode != RUN_MODE_CREATIVE_ZEN);
     int hint_enabled = (mode != RUN_MODE_CREATIVE_SUDDEN_DEATH);
-    int max_hints = (mode == RUN_MODE_CREATIVE_ZEN) ? 2 : 1;
     int hint_penalty = (mode == RUN_MODE_CREATIVE_ZEN) ? 0 : 5;
     ScoreCategory category = mode_to_score_category(mode);
 
@@ -1703,6 +1704,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
         int answer_count;
         int tiles_start_x;
         int hints_used_this_round;
+        int max_hints;
 
         /* Timer */
         time_t round_start;
@@ -1760,6 +1762,8 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
         strcpy(word, pool->words[word_idx]);
         word_len = (int)strlen(word);
         scramble_word(word, scrambled);
+        max_hints = hint_enabled ? (word_len / 2) : 0;
+        if(hint_enabled && max_hints < 1) max_hints = 1;
 
         /* Calculate tile positions (centered) */
         tiles_start_x = WIN_W / 2 - (word_len * (TILE_SIZE + TILE_GAP)) / 2;
@@ -1904,9 +1908,12 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                 }
                 gfx_color(130, 140, 155);
                 if(hint_penalty > 0) {
-                    sprintf(buf, "Hint: -%d points", hint_penalty);
+                    sprintf(buf, "Hints left: %d/%d  Cost: %d",
+                            max_hints - hints_used_this_round, max_hints,
+                            hint_penalty);
                 } else {
-                    sprintf(buf, "Hint: free in Zen");
+                    sprintf(buf, "Hints left: %d/%d  Free in Zen",
+                            max_hints - hints_used_this_round, max_hints);
                 }
                 draw_centered_text(hint_btn_x + hint_btn_w / 2, hint_btn_y - 18, buf);
             }

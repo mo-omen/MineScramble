@@ -92,6 +92,10 @@ void audio_init(void)
         printf("Failed to initialize audio engine.\n");
         return;
     }
+    bgm_enabled = 1;
+    sfx_enabled = 1;
+    current_bgm = 0;
+    bgm_loaded = 0;
     audio_initialized = 1;
     audio_play_current_bgm();
 }
@@ -130,6 +134,12 @@ void audio_play_sfx_remove(void)
 {
     if(!audio_initialized || !sfx_enabled) return;
     ma_engine_play_sound(&engine, "src/sounds/sfx-remove.wav", NULL);
+}
+
+void audio_play_sfx_hint(void)
+{
+    if(!audio_initialized || !sfx_enabled) return;
+    ma_engine_play_sound(&engine, "src/sounds/sfx-hint.wav", NULL);
 }
 
 void audio_toggle_bgm(void)
