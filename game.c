@@ -266,6 +266,7 @@ int check_guess(const char *guess, const char *answer);
 /* GUI screens */
 int gui_main_menu(void);
 void gui_help_screen(void);
+void gui_options_menu(void);
 void gui_scoreboard(void);
 int gui_mode_select(void);
 int gui_difficulty_select(void);
@@ -279,6 +280,8 @@ PauseAction gui_pause_menu(void);
 /* Score management */
 ScoreCategory mode_to_score_category(RunMode mode);
 const char *mode_display_name(RunMode mode, int set_index);
+int mode_time_limit(RunMode mode, int set_index);
+void uppercase_string(char *text);
 void add_score(const char *name, int score, int set_index, ScoreCategory category);
 void save_scores(void);
 void load_scores(void);
@@ -363,8 +366,10 @@ int main()
         } else if(choice == 2) {
             gui_help_screen();
         } else if(choice == 3) {
-            gui_scoreboard();
+            gui_options_menu();
         } else if(choice == 4) {
+            gui_scoreboard();
+        } else if(choice == 5) {
             break;
         }
     }
@@ -915,6 +920,24 @@ const char *mode_display_name(RunMode mode, int set_index)
     }
 }
 
+int mode_time_limit(RunMode mode, int set_index)
+{
+    if(mode == RUN_MODE_CREATIVE_MARATHON) return 120;
+    if(mode == RUN_MODE_CREATIVE_SUDDEN_DEATH) return 25;
+    if(mode == RUN_MODE_SURVIVAL) {
+        if(set_index == 1) return 15;
+        if(set_index == 2) return 20;
+    }
+    return TIMER_MAX;
+}
+
+void uppercase_string(char *text)
+{
+    for(int i = 0; text[i] != '\0'; i++) {
+        text[i] = (char)toupper((unsigned char)text[i]);
+    }
+}
+
 /* ======================== GUI: MAIN MENU ======================== */
 
 char game_poll_event(int *clicked) {
@@ -924,6 +947,16 @@ char game_poll_event(int *clicked) {
     audio_tick();
     if(gfx_event_waiting()) {
         char c = gfx_wait();
+        if(c == '[') {
+            audio_prev_bgm();
+            *clicked = 0;
+            return 0;
+        }
+        if(c == ']') {
+            audio_next_bgm();
+            *clicked = 0;
+            return 0;
+        }
         *clicked = 1;
         return c;
     }
@@ -939,7 +972,7 @@ int gui_main_menu(void)
     int mx, my;
     int creeper_size;
     int title_y, creeper_y, sub_y;
-    int btn1_y, btn2_y, btn3_y, btn4_y;
+    int btn1_y, btn2_y, btn3_y, btn4_y, btn5_y;
 
     /* Layout positions */
     title_y = 65;
@@ -950,6 +983,7 @@ int gui_main_menu(void)
     btn2_y = 318;
     btn3_y = 376;
     btn4_y = 434;
+    btn5_y = 492;
 
     while(1) {
         draw_mc_background();
@@ -972,9 +1006,11 @@ int gui_main_menu(void)
                              80, 145, 55);
         draw_mc_button_color(cx, btn2_y, btn_w, btn_h, "HOW TO PLAY",
                              70, 100, 155);
-        draw_mc_button_color(cx, btn3_y, btn_w, btn_h, "LEADERBOARD",
+        draw_mc_button_color(cx, btn3_y, btn_w, btn_h, "OPTIONS",
+                             90, 110, 135);
+        draw_mc_button_color(cx, btn4_y, btn_w, btn_h, "LEADERBOARD",
                              165, 140, 45);
-        draw_mc_button_color(cx, btn4_y, btn_w, btn_h, "QUIT GAME",
+        draw_mc_button_color(cx, btn5_y, btn_w, btn_h, "QUIT GAME",
                              155, 60, 55);
 
         /* Footer */
@@ -992,6 +1028,7 @@ int gui_main_menu(void)
         if(is_click_in_rect(mx, my, cx, btn2_y, btn_w, btn_h)) { audio_play_sfx_click(); return 2; }
         if(is_click_in_rect(mx, my, cx, btn3_y, btn_w, btn_h)) { audio_play_sfx_click(); return 3; }
         if(is_click_in_rect(mx, my, cx, btn4_y, btn_w, btn_h)) { audio_play_sfx_click(); return 4; }
+        if(is_click_in_rect(mx, my, cx, btn5_y, btn_w, btn_h)) { audio_play_sfx_click(); return 5; }
     }
 }
 
@@ -1054,7 +1091,50 @@ int gui_mode_select(void)
 
 void gui_help_screen(void)
 {
+    static const char *page_titles[] = {
+        "BASICS",
+        "MODES",
+        "HINTS + MENUS"
+    };
+    static const char *page_lines[3][10] = {
+        {
+            "1. Click scrambled tiles to fill answer slots.",
+            "2. Type letters on the keyboard if you prefer.",
+            "3. Click a placed tile or press Backspace to undo.",
+            "4. Full answers auto-check, or press Enter.",
+            "Correct words give +10 score every time.",
+            "Survival can gain extra lives from correct words.",
+            "Wrong answers show the real word afterward.",
+            "Repeated words never appear in one run.",
+            NULL
+        },
+        {
+            "SURVIVAL: choose Peaceful, Survival, or Hardcore.",
+            "Peaceful gives 10 seconds per word.",
+            "Survival gives 15 seconds per word.",
+            "Hardcore gives 20 seconds per word.",
+            "MARATHON: one shared 120-second run timer.",
+            "Marathon always shows 6 lives and never changes them.",
+            "ZEN: no timer, no life loss, answers reveal and continue.",
+            "SUDDEN DEATH: 25 seconds and one mistake ends the run.",
+            NULL
+        },
+        {
+            "HINT reveals one correct slot.",
+            "You can use hints up to half the word length.",
+            "Survival and Marathon hints cost 5 score each.",
+            "Zen hints are free. Sudden Death has no hints.",
+            "MENU or Esc opens the pause menu during a run.",
+            "OPTIONS on the main menu changes only BGM and SFX.",
+            "Press \\ for a keyboard hint without using letter keys.",
+            "Use [ and ] any time to skip previous or next BGM.",
+            "Back from Survival or Creative submenus returns to path select.",
+            "Player names are saved in uppercase on the leaderboard."
+        }
+    };
     int mx, my;
+    int page = 0;
+    int page_count = 3;
     int back_w = 160;
     int back_h = 40;
     int back_x = WIN_W / 2 - back_w / 2;
@@ -1063,94 +1143,72 @@ void gui_help_screen(void)
     int panel_y = 80;
     int panel_w = WIN_W - 160;
     int panel_h = 520;
-    int lx, ly;
+    int left_x = panel_x + 24;
+    int right_x = panel_x + panel_w - 76;
+    int arrow_y = back_y;
 
     while(1) {
+        char buf[32];
+        int icon_x = panel_x + 42;
+        int text_x = panel_x + 84;
+        int line_y = panel_y + 116;
+
         draw_mc_background();
         draw_grass_strip(0);
         draw_dirt_strip(WIN_H - 11);
 
-        /* Title */
         draw_pixel_shadow(WIN_W / 2, 30, "HOW TO PLAY", 3,
                           100, 200, 255);
-
-        /* Content panel */
         draw_mc_panel(panel_x, panel_y, panel_w, panel_h);
 
-        lx = panel_x + 30;
-        ly = panel_y + 25;
+        gfx_color(52, 52, 56);
+        draw_filled_rect(panel_x + 22, panel_y + 22, panel_w - 44, panel_h - 102);
+        gfx_color(32, 32, 36);
+        draw_filled_rect(panel_x + 22, panel_y + 22, panel_w - 44, 52);
 
-        gfx_color(50, 50, 50);
-        gfx_text(lx, ly, "1. A scrambled word will appear on screen as letter tiles.");
-        ly += 32;
-        gfx_text(lx, ly, "2. Click the scrambled letters to place them in the answer slots.");
-        ly += 32;
-        gfx_text(lx, ly, "   You can also type letters on the keyboard to place them.");
-        ly += 32;
-        gfx_text(lx, ly, "3. Click a placed letter or press Backspace to remove it.");
-        ly += 32;
-        gfx_text(lx, ly, "4. Once all slots are filled, your guess is checked automatically.");
-        ly += 32;
-        gfx_text(lx, ly, "   You can also press Enter to submit your answer.");
-        ly += 48;
+        draw_pixel_shadow(WIN_W / 2, panel_y + 36, page_titles[page], 3,
+                          255, 240, 110);
+        gfx_color(150, 160, 180);
+        sprintf(buf, "PAGE %d / %d", page + 1, page_count);
+        draw_centered_text(WIN_W / 2, panel_y + 86, buf);
 
-        gfx_color(30, 30, 30);
-        gfx_text(lx, ly, "SCORING:");
-        ly += 28;
+        for(int i = 0; i < 9 && page_lines[page][i] != NULL; i++) {
+            if(page == 0 && i >= 4 && i <= 6) {
+                draw_diamond(icon_x, line_y - 8, 2);
+                gfx_color(200, 210, 230);
+            } else if(page == 1 && i >= 4) {
+                draw_creeper(icon_x, line_y - 8, 2);
+                gfx_color(200, 210, 230);
+            } else {
+                gfx_color(200, 210, 230);
+            }
+            gfx_text(text_x, line_y, page_lines[page][i]);
+            line_y += 34;
+        }
 
-        /* Correct - with heart decoration */
-        draw_mc_heart(lx, ly - 10, 2, 1);
-        gfx_color(30, 120, 30);
-        gfx_text(lx + 20, ly, "Correct guess within 10 seconds:  +1 life,  +10 points");
-        ly += 28;
-
-        /* Wrong */
-        draw_mc_heart(lx, ly - 10, 2, 0);
-        gfx_color(160, 30, 30);
-        gfx_text(lx + 20, ly, "Wrong guess or time runs out:  -1 life,  0 points");
-        ly += 40;
-
-        gfx_color(50, 50, 50);
-        gfx_text(lx, ly, "You start with 3 lives (max 6). Game ends when lives reach 0.");
-        ly += 28;
-        gfx_text(lx, ly, "Choose Play Game, enter your name, then pick Survival or Creative.");
-        ly += 28;
-        gfx_text(lx, ly, "Survival uses Peaceful, Survival, or Hardcore difficulties.");
-        ly += 28;
-        gfx_text(lx, ly, "Creative has Timed Marathon, Zen Mode, and Sudden Death.");
-        ly += 28;
-        gfx_text(lx, ly, "Marathon and Survival use timer and lives. Sudden Death ends on one mistake.");
-        ly += 28;
-        gfx_text(lx, ly, "Zen Mode has no timer. Wrong answers reveal the word and continue.");
-        ly += 28;
-        gfx_text(lx, ly, "Click MENU or press Esc to pause and toggle BGM or SFX.");
-        ly += 28;
-        gfx_text(lx, ly, "Press H or click HINT to reveal one correct slot when allowed.");
-        ly += 28;
-        gfx_text(lx, ly, "Hints can be used multiple times, up to half the word length.");
-        ly += 28;
-        gfx_text(lx, ly, "Paid hints need at least 5 score each. Zen hints are free.");
-        ly += 28;
-        gfx_text(lx, ly, "No repeated words in a single run. The answer is shown after wrong or timeout.");
-        ly += 24;
-
-        /* Difficulty info with creeper */
-        draw_creeper(lx, ly - 6, 3);
-        gfx_color(30, 30, 30);
-        gfx_text(lx + 32, ly, "Back from difficulty or creative mode returns to path select.");
-
-        /* Back button */
+        draw_mc_button_color(left_x, arrow_y, 52, 40, "<", 100, 100, 140);
+        draw_mc_button_color(right_x, arrow_y, 52, 40, ">", 100, 100, 140);
         draw_mc_button(back_x, back_y, back_w, back_h, "BACK");
 
         gfx_flush();
 
-        int clicked=0; game_poll_event(&clicked); if(!clicked) continue;
+        int clicked = 0;
+        game_poll_event(&clicked);
+        if(!clicked) continue;
         mx = gfx_xpos();
         my = gfx_ypos();
 
         if(is_click_in_rect(mx, my, back_x, back_y, back_w, back_h)) {
             audio_play_sfx_click();
             return;
+        }
+        if(is_click_in_rect(mx, my, left_x, arrow_y, 52, 40) && page > 0) {
+            audio_play_sfx_click();
+            page--;
+        }
+        if(is_click_in_rect(mx, my, right_x, arrow_y, 52, 40) && page < page_count - 1) {
+            audio_play_sfx_click();
+            page++;
         }
     }
 }
@@ -1501,7 +1559,7 @@ void gui_get_player_name(char *name, int maxlen)
                 name[len] = '\0';
             }
         } else if(c >= 32 && c <= 126 && len < maxlen) {
-            name[len] = c;
+            name[len] = (char)toupper((unsigned char)c);
             len++;
             name[len] = '\0';
         }
@@ -1580,6 +1638,70 @@ PauseAction gui_pause_menu(void)
         if(is_click_in_rect(mx, my, right_x, row2_y, btn_w, btn_h)) {
             audio_play_sfx_click();
             audio_toggle_sfx();
+        }
+    }
+}
+
+void gui_options_menu(void)
+{
+    int panel_w = 390;
+    int panel_h = 230;
+    int panel_x = WIN_W / 2 - panel_w / 2;
+    int panel_y = WIN_H / 2 - panel_h / 2;
+    int btn_w = 180;
+    int btn_h = 42;
+    int left_x = panel_x + 20;
+    int right_x = panel_x + panel_w - btn_w - 20;
+    int row1_y = panel_y + 88;
+    int row2_y = panel_y + 142;
+    int mx, my;
+
+    while(1) {
+        char buf[80];
+
+        draw_mc_background();
+        draw_grass_strip(0);
+        draw_dirt_strip(WIN_H - 11);
+        draw_mc_panel(panel_x, panel_y, panel_w, panel_h);
+
+        draw_pixel_shadow(WIN_W / 2, panel_y + 20, "OPTIONS", 3,
+                          255, 220, 90);
+        gfx_color(80, 80, 95);
+        draw_centered_text(WIN_W / 2, panel_y + 58,
+                           "Toggle music and sound for this session.");
+
+        sprintf(buf, "BGM: %s", audio_bgm_enabled() ? "ON" : "OFF");
+        draw_mc_button_color(left_x, row1_y, btn_w, btn_h,
+                             buf, 70, 100, 155);
+
+        sprintf(buf, "SFX: %s", audio_sfx_enabled() ? "ON" : "OFF");
+        draw_mc_button_color(right_x, row1_y, btn_w, btn_h,
+                             buf, 165, 140, 45);
+
+        draw_mc_button_color(WIN_W / 2 - btn_w / 2, row2_y, btn_w, btn_h,
+                             "BACK", 100, 100, 140);
+
+        audio_draw_popup();
+        gfx_flush();
+
+        int clicked = 0;
+        game_poll_event(&clicked);
+        if(!clicked) continue;
+
+        mx = gfx_xpos();
+        my = gfx_ypos();
+
+        if(is_click_in_rect(mx, my, left_x, row1_y, btn_w, btn_h)) {
+            audio_play_sfx_click();
+            audio_toggle_bgm();
+        }
+        if(is_click_in_rect(mx, my, right_x, row1_y, btn_w, btn_h)) {
+            audio_play_sfx_click();
+            audio_toggle_sfx();
+        }
+        if(is_click_in_rect(mx, my, WIN_W / 2 - btn_w / 2, row2_y, btn_w, btn_h)) {
+            audio_play_sfx_click();
+            return;
         }
     }
 }
@@ -1671,17 +1793,23 @@ int try_use_hint(char answer_slots[], int *answer_count, int tile_selected[],
 
 void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMode mode)
 {
-    int lives = (mode == RUN_MODE_CREATIVE_SUDDEN_DEATH) ? 1 : STARTING_LIVES;
+    int lives = (mode == RUN_MODE_CREATIVE_MARATHON) ? MAX_LIVES :
+                ((mode == RUN_MODE_CREATIVE_SUDDEN_DEATH) ? 1 : STARTING_LIVES);
     int score = 0;
     int used[MAX_TOTAL_WORDS];
     int word_idx;
     int round_num = 0;
     int show_timer = (mode != RUN_MODE_CREATIVE_ZEN);
-    int award_lives = (mode == RUN_MODE_SURVIVAL || mode == RUN_MODE_CREATIVE_MARATHON);
-    int use_lives = (mode != RUN_MODE_CREATIVE_ZEN);
+    int gain_lives = (mode == RUN_MODE_SURVIVAL);
+    int lose_lives = (mode == RUN_MODE_SURVIVAL || mode == RUN_MODE_CREATIVE_SUDDEN_DEATH);
+    int game_over_by_lives = lose_lives;
+    int show_lives = (mode != RUN_MODE_CREATIVE_ZEN);
+    int shared_run_timer = (mode == RUN_MODE_CREATIVE_MARATHON);
     int hint_enabled = (mode != RUN_MODE_CREATIVE_SUDDEN_DEATH);
     int hint_penalty = (mode == RUN_MODE_CREATIVE_ZEN) ? 0 : 5;
+    int time_limit = mode_time_limit(mode, set_index);
     ScoreCategory category = mode_to_score_category(mode);
+    time_t session_start = time(NULL);
 
     /* HUD layout constants */
     int hud_panel_x = 8;
@@ -1691,7 +1819,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
 
     memset(used, 0, sizeof(used));
 
-    while(!use_lives || lives > 0) {
+    while(!game_over_by_lives || lives > 0) {
         char word[MAX_WORD_LEN];
         char scrambled[MAX_WORD_LEN];
         int word_len;
@@ -1790,12 +1918,16 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
             int mx, my;
             char buf[80];
 
-            elapsed = (int)difftime(time(NULL), round_start);
-            seconds_left = show_timer ? (TIMER_MAX - elapsed) : TIMER_MAX;
+            elapsed = (int)difftime(time(NULL), shared_run_timer ? session_start : round_start);
+            seconds_left = show_timer ? (time_limit - elapsed) : time_limit;
             if(seconds_left < 0) seconds_left = 0;
             can_afford_hint = (hint_penalty == 0 || score >= hint_penalty);
 
             if(show_timer && seconds_left <= 0) {
+                if(shared_run_timer) {
+                    result = -3;
+                    break;
+                }
                 result = -2;
                 break;
             }
@@ -1813,7 +1945,9 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
             gfx_text(hud_panel_x + 18, hud_panel_y + 20, buf);
 
             /* Hearts below player name */
-            draw_mc_hearts(hud_panel_x + 18, hud_panel_y + 30, lives, 2);
+            if(show_lives) {
+                draw_mc_hearts(hud_panel_x + 18, hud_panel_y + 30, lives, 2);
+            }
 
             /* Score with diamond icon (right side) */
             draw_diamond(hud_panel_w - 160, hud_panel_y + 8, 2);
@@ -1847,7 +1981,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
             /* XP Timer bar */
             if(show_timer) {
                 draw_xp_bar(WIN_W / 2 - 200, 105, 400, 16,
-                            seconds_left, TIMER_MAX);
+                            seconds_left, time_limit);
             } else {
                 gfx_color(120, 180, 200);
                 draw_centered_text(WIN_W / 2, 110,
@@ -1943,7 +2077,11 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                     if(pause_action == PAUSE_MAIN_MENU) {
                         return;
                     }
-                    round_start += time(NULL) - pause_start;
+                    if(shared_run_timer) {
+                        session_start += time(NULL) - pause_start;
+                    } else {
+                        round_start += time(NULL) - pause_start;
+                    }
                     continue;
                 }
 
@@ -1959,7 +2097,11 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                         if(pause_action == PAUSE_MAIN_MENU) {
                             return;
                         }
-                        round_start += time(NULL) - pause_start;
+                        if(shared_run_timer) {
+                            session_start += time(NULL) - pause_start;
+                        } else {
+                            round_start += time(NULL) - pause_start;
+                        }
                         continue;
                     }
                     if(hint_enabled &&
@@ -2064,7 +2206,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                         result = evaluate_answer_slots(answer_slots, answer_count,
                                                        word_len, word);
                     }
-                } else if((key == 'h' || key == 'H') && hint_enabled &&
+                } else if(key == '\\' && hint_enabled &&
                           hints_used_this_round < max_hints &&
                           can_afford_hint) {
                     if(try_use_hint(answer_slots, &answer_count, tile_selected,
@@ -2099,10 +2241,23 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
             char msg2[80] = "";
             int msg_r, msg_g, msg_b;
 
-            if(result == 1) {
+            if(result == -3) {
+                draw_mc_background();
+                draw_grass_strip(0);
+                draw_dirt_strip(WIN_H - 11);
+                draw_pixel_shadow(WIN_W / 2, 220, "MARATHON OVER!", 5,
+                                  255, 190, 55);
+                sprintf(msg2, "FINAL SCORE: %d", score);
+                draw_pixel_shadow(WIN_W / 2, 300, msg2, 2,
+                                  200, 200, 220);
+                draw_creeper(WIN_W / 2 - 24, 390, 6);
+                gfx_flush();
+                usleep(1800000);
+                break;
+            } else if(result == 1) {
                 sprintf(msg1, "CORRECT!");
                 msg_r = 80; msg_g = 230; msg_b = 60;
-                if(award_lives && lives < MAX_LIVES) lives++;
+                if(gain_lives && lives < MAX_LIVES) lives++;
                 score += POINTS_PER_CORRECT;
                 flash_tiles_color(slot_x, slot_y, word_len,
                                   80, 230, 60, 3);
@@ -2112,7 +2267,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                 msg_r = 220; msg_g = 55; msg_b = 55;
                 if(mode == RUN_MODE_CREATIVE_ZEN) {
                     strcpy(msg1, "REVEALED");
-                } else if(use_lives) {
+                } else if(lose_lives) {
                     lives--;
                 }
                 flash_tiles_color(slot_x, slot_y, word_len,
@@ -2121,7 +2276,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
                 sprintf(msg1, "TIMES UP!");
                 sprintf(msg2, "Answer: %s", word);
                 msg_r = 230; msg_g = 150; msg_b = 35;
-                if(use_lives) lives--;
+                if(lose_lives) lives--;
             }
 
             /* Result display */
@@ -2139,7 +2294,7 @@ void gui_play_game(WordPool *pool, int set_index, const char *player_name, RunMo
 
             {
                 char buf[60];
-                if(use_lives) {
+                if(show_lives) {
                     sprintf(buf, "LIVES: %d   SCORE: %d", lives, score);
                 } else {
                     sprintf(buf, "SCORE: %d", score);
@@ -2218,7 +2373,7 @@ void gui_game_over(int score, int *choice)
 
         /* Buttons */
         draw_mc_button_color(replay_x, btn_y, btn_w, btn_h,
-                             "REPLAY", 80, 145, 55);
+                             "RESPAWN", 80, 145, 55);
         draw_mc_button_color(menu_x, btn_y, btn_w, btn_h,
                              "MAIN MENU", 100, 100, 140);
 
@@ -2299,6 +2454,7 @@ void add_score(const char *name, int score, int set_index, ScoreCategory categor
 
     strncpy(new_rec.name, name, 29);
     new_rec.name[29] = '\0';
+    uppercase_string(new_rec.name);
     new_rec.score = score;
     new_rec.set_used = set_index;
     new_rec.category = category;
@@ -2365,6 +2521,7 @@ void load_scores(void)
             line[strcspn(line, "\n")] = '\0';
             strncpy(high_scores[SCORE_SURVIVAL][i].name, line, 29);
             high_scores[SCORE_SURVIVAL][i].name[29] = '\0';
+            uppercase_string(high_scores[SCORE_SURVIVAL][i].name);
             if(fgets(line, sizeof(line), fp) == NULL) break;
             high_scores[SCORE_SURVIVAL][i].score = atoi(line);
             if(fgets(line, sizeof(line), fp) == NULL) break;
@@ -2388,6 +2545,7 @@ void load_scores(void)
             line[strcspn(line, "\n")] = '\0';
             strncpy(high_scores[category][i].name, line, 29);
             high_scores[category][i].name[29] = '\0';
+            uppercase_string(high_scores[category][i].name);
             if(fgets(line, sizeof(line), fp) == NULL) break;
             high_scores[category][i].score = atoi(line);
             if(fgets(line, sizeof(line), fp) == NULL) break;

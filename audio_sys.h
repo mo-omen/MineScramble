@@ -12,6 +12,8 @@ void audio_toggle_bgm(void);
 int audio_bgm_enabled(void);
 void audio_toggle_sfx(void);
 int audio_sfx_enabled(void);
+void audio_next_bgm(void);
+void audio_prev_bgm(void);
 
 // For drawing the popup
 void audio_draw_popup(void);

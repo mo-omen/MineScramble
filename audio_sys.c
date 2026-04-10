@@ -163,6 +163,20 @@ int audio_sfx_enabled(void)
     return sfx_enabled;
 }
 
+void audio_next_bgm(void)
+{
+    if(!audio_initialized) return;
+    current_bgm = (current_bgm + 1) % num_bgm;
+    audio_play_current_bgm();
+}
+
+void audio_prev_bgm(void)
+{
+    if(!audio_initialized) return;
+    current_bgm = (current_bgm - 1 + num_bgm) % num_bgm;
+    audio_play_current_bgm();
+}
+
 int audio_popup_active(void)
 {
     return (time(NULL) - popup_show_time < 3);
