@@ -1,4 +1,3 @@
-#include "audio_sys.h"
 /********************************************************************
     Group Name   :       0day
     1st Member Name      :       Momen Mohamedelhassan Mohamed Elhag
@@ -20,7 +19,7 @@ gcc game.c gfx.c audio_sys.c -o game.o -lX11 -lm -lpthread -ldl
 #include <unistd.h>
 #include <sys/stat.h>
 #include "gfx.h"
-
+#include "audio_sys.h"
 /* ======================== CONSTANTS ======================== */
 
 #define WIN_W 1024
@@ -1016,7 +1015,7 @@ int gui_main_menu(void)
         /* Footer */
         gfx_color(80, 80, 80);
         draw_centered_text(WIN_W / 2, WIN_H - 22,
-                           "SPI Project - January 2026");
+                           "SPI Project - January 2026 [0day]");
 
         gfx_flush();
 
