@@ -9,8 +9,16 @@
 
 static ma_engine engine;
 static ma_sound bgm_sound;
+static ma_sound sfx_click_sound;
+static ma_sound sfx_letter_sound;
+static ma_sound sfx_remove_sound;
+static ma_sound sfx_hint_sound;
 static int audio_initialized = 0;
 static int bgm_loaded = 0;
+static int sfx_click_loaded = 0;
+static int sfx_letter_loaded = 0;
+static int sfx_remove_loaded = 0;
+static int sfx_hint_loaded = 0;
 static int bgm_enabled = 1;
 static int sfx_enabled = 1;
 
@@ -86,6 +94,20 @@ static void audio_play_current_bgm(void)
     update_popup_info();
 }
 
+static int audio_load_sfx(ma_sound *sound, const char *path)
+{
+    return ma_sound_init_from_file(&engine, path, 0, NULL, NULL, sound) == MA_SUCCESS;
+}
+
+static void audio_play_sfx(ma_sound *sound, int loaded)
+{
+    if(!audio_initialized || !sfx_enabled || !loaded) return;
+
+    ma_sound_stop(sound);
+    ma_sound_seek_to_pcm_frame(sound, 0);
+    ma_sound_start(sound);
+}
+
 void audio_init(void)
 {
     if(ma_engine_init(NULL, &engine) != MA_SUCCESS) {
@@ -96,6 +118,10 @@ void audio_init(void)
     sfx_enabled = 1;
     current_bgm = 0;
     bgm_loaded = 0;
+    sfx_click_loaded = audio_load_sfx(&sfx_click_sound, "src/sounds/sfx-click.wav");
+    sfx_letter_loaded = audio_load_sfx(&sfx_letter_sound, "src/sounds/sfx-letter.wav");
+    sfx_remove_loaded = audio_load_sfx(&sfx_remove_sound, "src/sounds/sfx-remove.wav");
+    sfx_hint_loaded = audio_load_sfx(&sfx_hint_sound, "src/sounds/sfx-hint.wav");
     audio_initialized = 1;
     audio_play_current_bgm();
 }
@@ -106,7 +132,20 @@ void audio_cleanup(void)
     if(bgm_loaded) {
         ma_sound_uninit(&bgm_sound);
     }
+    if(sfx_click_loaded) {
+        ma_sound_uninit(&sfx_click_sound);
+    }
+    if(sfx_letter_loaded) {
+        ma_sound_uninit(&sfx_letter_sound);
+    }
+    if(sfx_remove_loaded) {
+        ma_sound_uninit(&sfx_remove_sound);
+    }
+    if(sfx_hint_loaded) {
+        ma_sound_uninit(&sfx_hint_sound);
+    }
     ma_engine_uninit(&engine);
+    audio_initialized = 0;
 }
 
 void audio_tick(void)
@@ -120,26 +159,22 @@ void audio_tick(void)
 
 void audio_play_sfx_click(void)
 {
-    if(!audio_initialized || !sfx_enabled) return;
-    ma_engine_play_sound(&engine, "src/sounds/sfx-click.wav", NULL);
+    audio_play_sfx(&sfx_click_sound, sfx_click_loaded);
 }
 
 void audio_play_sfx_letter(void)
 {
-    if(!audio_initialized || !sfx_enabled) return;
-    ma_engine_play_sound(&engine, "src/sounds/sfx-letter.wav", NULL);
+    audio_play_sfx(&sfx_letter_sound, sfx_letter_loaded);
 }
 
 void audio_play_sfx_remove(void)
 {
-    if(!audio_initialized || !sfx_enabled) return;
-    ma_engine_play_sound(&engine, "src/sounds/sfx-remove.wav", NULL);
+    audio_play_sfx(&sfx_remove_sound, sfx_remove_loaded);
 }
 
 void audio_play_sfx_hint(void)
 {
-    if(!audio_initialized || !sfx_enabled) return;
-    ma_engine_play_sound(&engine, "src/sounds/sfx-hint.wav", NULL);
+    audio_play_sfx(&sfx_hint_sound, sfx_hint_loaded);
 }
 
 void audio_toggle_bgm(void)

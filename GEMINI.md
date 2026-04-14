@@ -1,44 +1,68 @@
 # MineScramble - Project Context for Gemini
 
 ## Project Overview
-**MineScramble** is a graphical word unscrambling game written in C, built on top of the X11 graphics library. It features a Minecraft-inspired user interface (with elements like blocky pixel fonts, creeper faces, hearts, and dirt/grass themes) created manually using primitive graphics drawing functions rather than loading images.
 
-**Key Features:**
-- Players unscramble words within a time limit.
-- Points and lives are awarded for correct answers.
-- Words are loaded from external text files grouped by difficulty (`Peaceful`, `Survival`, `Hardcore`).
-- Leaderboards are persistent and saved locally to a file.
-- Custom rendering system for the UI and text.
+**MineScramble** is a graphical word unscrambling game written in C using X11 for rendering and `miniaudio` for music and sound effects. The interface is hand-drawn with primitive graphics functions and follows a Minecraft-inspired visual style with blocky text, panel framing, and game-like menu flows.
+
+## Current Feature Set
+
+- Survival mode with three puzzle-set difficulty choices
+- Creative mode with Marathon, Zen, and Sudden Death variants
+- Persistent leaderboard categories stored locally
+- Hint system with mode-specific rules
+- Background music controls and sound-effect toggles
+- Preloaded short SFX for low-latency UI and gameplay feedback
 
 ## Directory Structure and Key Files
-- `game.c`: The core logic file handling the game loop, UI rendering, file loading, scrambling, input, and scoring.
-- `gfx.c` / `gfx.h`: A simple, provided graphics library built on X11 that handles opening the window, drawing primitives, and reading events.
-- `src/puzzle/`: Contains text files (`puzzle1.txt`, `puzzle2.txt`, `puzzle3.txt`) defining the words for the three difficulty tiers.
-- `src/savedata/`: Directory where the `scores.dat` leaderboard file is created and stored.
-- `src/sounds/`: Contains background music and sound effects (`.wav`, `.mp3`). 
-- `Documentation.md`: Extensive manual documenting program flow, constants, global variables, and game limitations.
+
+- `game.c`: Main game flow, menu logic, gameplay loop, puzzle management, hints, and leaderboard handling
+- `gfx.c` / `gfx.h`: X11 drawing and input wrapper
+- `audio_sys.c` / `audio_sys.h`: Audio initialization, BGM switching, SFX playback, and popup drawing
+- `src/puzzle/`: Word lists for the three puzzle groups
+- `src/sounds/`: Background tracks and effect files
+- `src/savedata/`: Location of the generated `scores.dat` leaderboard file
+- `Documentation.md`: Human-oriented project documentation and gameplay summary
 
 ## Building and Running
 
-**Dependencies:**
-- Linux or a Linux-like environment.
-- X11 graphical support (an active display is required).
-- `gcc` compiler and `libm` (math library).
+Compile:
 
-**Compile Command:**
 ```bash
 gcc game.c gfx.c audio_sys.c -o game.o -lX11 -lm -lpthread -ldl
 ```
 
-**Run Command:**
+Run:
+
 ```bash
 ./game.o
 ```
 
-## Development Conventions & Architecture
-- **Monolithic Game Logic:** The majority of the game mechanics (input processing, game loop, UI layout) are contained within `game.c`.
-- **Custom UI Rendering:** The game draws UI elements using raw graphics primitives (`gfx_line`, `gfx_point`, `gfx_color`) to simulate a Minecraft aesthetic, including custom pixel font rendering routines.
-- **Fixed Limits:** Uses C preprocessor macros for constraints (e.g., `MAX_WORDS 40`, `MAX_WORD_LEN 20`, `MAX_LETTERS 16`, `MAX_SCORES 10`).
-- **Input Handling:** Supports both mouse clicks (via geometric bounds checking `is_click_in_rect`) and keyboard inputs.
-- **Timing:** Uses standard C time functions (`time(NULL)`) for round limits and elapsed time calculations. No complex physics or animation engines are used.
-- **Style:** Standard procedural C coding conventions, utilizing basic C libraries (`stdio.h`, `stdlib.h`, `string.h`, `time.h`, `ctype.h`).
+## Runtime Notes
+
+- The game requires an X11-capable Linux environment
+- BGM and SFX both start enabled for each launch
+- Audio toggles are session-only
+- Background tracks are streamed
+- SFX assets are preloaded during `audio_init()` to reduce click delay
+
+## Architecture Notes
+
+- Most gameplay logic is centralized in `game.c`
+- UI rendering is custom and built from low-level primitives rather than image assets
+- Shared data is bounded by fixed macros such as `MAX_WORDS`, `MAX_WORD_LEN`, `MAX_LETTERS`, and `MAX_SCORES`
+- Input supports mouse-driven interaction plus several keyboard shortcuts during gameplay and audio control
+- The codebase is procedural C with a small module split: gameplay, graphics wrapper, and audio wrapper
+
+## Key Gameplay Concepts
+
+- Survival uses one selected puzzle set and timed rounds with lives
+- Creative Marathon uses a single global timer
+- Creative Zen removes timer pressure
+- Creative Sudden Death ends on the first failure
+- Hints reveal one correct slot and follow per-mode cost rules
+
+## Maintenance Guidance
+
+- Prefer updating the explicit `gcc` compile line when adding source files
+- Keep puzzle and sound asset paths in sync with the hardcoded runtime references
+- `patch1.sh` is obsolete and should not be reintroduced; `game.c` already includes `audio_sys.h`
