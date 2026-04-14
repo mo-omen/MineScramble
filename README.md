@@ -103,8 +103,3 @@ Scores are saved locally in `src/savedata/scores.dat`. The game stores separate 
 - Creative Zen
 - Creative Sudden Death
 
-## Development Notes
-
-- There is no `Makefile` yet; compile with the explicit `gcc` command above
-- `patch1.sh` is no longer part of the workflow and has been removed
-- Manual verification is the current testing approach: rebuild and exercise menu flow, gameplay, scoring, saving, and audio playback
